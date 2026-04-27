@@ -33,14 +33,14 @@ opencli plugin install github:SlowGrowth1314/opencli-weixin-album
 在微信中打开合集页面，复制 URL，格式如下：
 
 ```
-https://mp.weixin.qq.com/mp/appmsgalbum?__biz=xxx&action=getalbum&album_id=xxx&scene=126
+https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MzI0NTU3NTc5Ng==&action=getalbum&album_id=4472269918050484230&scene=126&sessionid=1777274666606#wechat_redirect
 ```
 
 执行命令：
 
 ```bash
 opencli weixin download-album \
-  --url "https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MzkzNzYzNzE3Mg==&action=getalbum&album_id=4164560801283358741&scene=126"
+  --url "https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MzI0NTU3NTc5Ng==&action=getalbum&album_id=4472269918050484230&scene=126&sessionid=1777274666606#wechat_redirect"
 ```
 
 ### 指定输出目录
