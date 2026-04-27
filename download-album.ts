@@ -1,7 +1,8 @@
 /**
  * opencli plugin: weixin-album
  *
- * Fetch WeChat Official Account album article list and generate Markdown index.
+ * Fetch WeChat Official Account album article list, download all articles,
+ * and generate Markdown index with local paths.
  *
  * Install:
  *   opencli plugin install github:<user>/opencli-weixin-album
@@ -12,6 +13,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { spawn } from 'node:child_process';
 import { cli, Strategy } from '@jackwener/opencli/registry';
 
 // ============================================================
@@ -113,13 +115,100 @@ async function fetchAlbumPage(
 }
 
 // ============================================================
+// Article Download (via opencli weixin download)
+// ============================================================
+
+function sanitizeTitle(title: string): string {
+  return title
+    .replace(/[<>:"/\\|?*]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+async function downloadArticle(articleUrl: string, outputDir: string): Promise<{ success: boolean; localPath: string | null }> {
+  const args = [
+    'weixin', 'download',
+    '--url', articleUrl,
+    '--output', outputDir,
+  ];
+
+  return new Promise((resolve) => {
+    const proc = spawn('opencli', args, {
+      stdio: ['pipe', 'inherit', 'inherit'],
+    });
+
+    proc.on('exit', (code) => {
+      if (code === 0) {
+        // opencli weixin download saves to {outputDir}/{safeTitle}/{safeTitle}.md
+        // We need to find the actual path. The title is embedded in the HTML,
+        // so we can't know it in advance. We'll scan the outputDir for the
+        // most recently created .md file.
+        const localPath = findLatestMd(outputDir);
+        resolve({ success: true, localPath });
+      } else {
+        resolve({ success: false, localPath: null });
+      }
+    });
+
+    proc.on('error', () => {
+      resolve({ success: false, localPath: null });
+    });
+  });
+}
+
+function findLatestMd(dir: string): string | null {
+  let latest: { path: string; mtime: number } | null = null;
+
+  function walk(current: string) {
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name.endsWith('.md') && !entry.name.endsWith('.d.md')) {
+        const stat = fs.statSync(full);
+        if (!latest || stat.mtimeMs > latest.mtime) {
+          latest = { path: full, mtime: stat.mtimeMs };
+        }
+      }
+    }
+  }
+
+  walk(dir);
+  return latest ? latest.path : null;
+}
+
+// ============================================================
+// Markdown Index Update
+// ============================================================
+
+function updateMdLocalPath(indexPath: string, index: number, localPath: string): void {
+  const content = fs.readFileSync(indexPath, 'utf-8');
+  const lines = content.split('\n');
+  // Skip header (line 0) and separator (line 1), find row starting with `| ${index} |`
+  for (let i = 2; i < lines.length; i++) {
+    if (lines[i].startsWith(`| ${index} |`) || lines[i].startsWith(`| ${index}  |`)) {
+      const cols = lines[i].split('|');
+      // cols: ['', ' N ', ' title ', ' url ', ' localPath ', ' time ', '']
+      if (cols.length >= 6) {
+        cols[4] = ` ${localPath} `;
+        lines[i] = cols.join('|');
+        break;
+      }
+    }
+  }
+  fs.writeFileSync(indexPath, lines.join('\n'), 'utf-8');
+}
+
+// ============================================================
 // CLI
 // ============================================================
 
 cli({
   site: 'weixin',
   name: 'download-album',
-  description: '获取微信公众号合集文章列表，生成 Markdown 索引文件',
+  description: '获取微信公众号合集文章列表，自动下载全部并生成带本地路径的 Markdown 索引',
   domain: 'mp.weixin.qq.com',
   strategy: Strategy.PUBLIC,
   args: [
@@ -140,6 +229,7 @@ cli({
     let cursor: { msgid: string; itemidx: string } | undefined;
     let albumTitle = albumId;
 
+    // Step 1: Fetch all article URLs
     console.error(`\n📦 获取合集: ${albumId}`);
 
     while (true) {
@@ -163,12 +253,13 @@ cli({
       await new Promise(r => setTimeout(r, pause));
     }
 
-    console.error(`✅ 共 ${allArticles.length} 篇文章\n`);
+    console.error(`✅ 共收集 ${allArticles.length} 篇文章链接`);
 
     const safeName = albumTitle.replace(/[\/\\:*?"<>|]/g, '_');
     const outputDir = path.resolve(kwargs.output, safeName);
     fs.mkdirSync(outputDir, { recursive: true });
 
+    // Step 2: Generate initial Markdown index
     const header = '| # | 标题 | URL | 本地路径 | 发布时间 |';
     const separator = '|---|------|-----|---------|---------|';
     const rows = allArticles.map((a, i) => {
@@ -183,7 +274,32 @@ cli({
     const indexPath = path.join(outputDir, `${safeName}.md`);
     fs.writeFileSync(indexPath, content, 'utf-8');
 
-    console.error(`📄 已生成: ${indexPath}\n`);
+    console.error(`📄 已生成索引: ${indexPath}\n`);
+
+    // Step 3: Download each article sequentially
+    const total = allArticles.length;
+    let successCount = 0;
+
+    for (let i = 0; i < total; i++) {
+      const article = allArticles[i];
+      const num = i + 1;
+
+      console.error(`\n[${num}/${total}] 📥 下载: ${article.title}`);
+
+      const result = await downloadArticle(article.url, outputDir);
+
+      if (result.success && result.localPath) {
+        const relativePath = path.relative(path.dirname(indexPath), result.localPath);
+        updateMdLocalPath(indexPath, num, relativePath);
+        successCount++;
+        console.error(`✅ [${num}/${total}] 下载成功，已更新本地路径: ${relativePath}`);
+      } else {
+        console.error(`❌ [${num}/${total}] 下载失败: ${article.title}`);
+      }
+    }
+
+    console.error(`\n✅ 合集下载完成: ${successCount}/${total} 篇`);
+    console.error(`📄 索引文件: ${indexPath}\n`);
 
     return allArticles.map(a => ({
       title: a.title,
