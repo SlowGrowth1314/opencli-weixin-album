@@ -1,0 +1,6 @@
+{
+  "name": "opencli-weixin-album",
+  "version": "1.0.0",
+  "opencli": ">=1.3.3",
+  "description": "Fetch WeChat Official Account album article list and generate Markdown index"
+}
