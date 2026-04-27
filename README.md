@@ -21,7 +21,7 @@ npm install -g @jackwener/opencli
 ## 安装
 
 ```bash
-opencli plugin install github:<your-username>/opencli-weixin-album
+opencli plugin install github:SlowGrowth1314/opencli-weixin-album
 ```
 
 安装后插件位于 `~/.opencli/plugins/opencli-weixin-album/`。安装过程中会自动完成 npm install、依赖链接和 TypeScript 编译。
