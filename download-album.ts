@@ -296,6 +296,12 @@ cli({
       } else {
         console.error(`❌ [${num}/${total}] 下载失败: ${article.title}`);
       }
+
+      if (i < total - 1) {
+        const pause = 1000 + Math.random() * 2000;
+        console.error(`⏳ 等待 ${Math.round(pause / 1000)}s 后继续...`);
+        await new Promise(r => setTimeout(r, pause));
+      }
     }
 
     console.error(`\n✅ 合集下载完成: ${successCount}/${total} 篇`);
