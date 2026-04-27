@@ -12,7 +12,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { cli, Strategy } from '@jackwener/opencli/registry.js';
+import { cli, Strategy } from '@jackwener/opencli/registry';
 
 // ============================================================
 // Types
