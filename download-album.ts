@@ -211,13 +211,14 @@ cli({
   description: '获取微信公众号合集文章列表，自动下载全部并生成带本地路径的 Markdown 索引',
   domain: 'mp.weixin.qq.com',
   strategy: Strategy.PUBLIC,
+  access: 'write',
   args: [
     { name: 'url', required: true, help: 'WeChat album URL' },
     { name: 'output', default: './weixin-albums', help: 'Output directory' },
     { name: 'batch-size', type: 'number', default: 20, help: 'Articles per API call (max 20)' },
   ],
   columns: ['title', 'url', 'create_time', 'status'],
-  func: async (_page, kwargs) => {
+  func: async (kwargs) => {
     const parsed = parseAlbumUrl(kwargs.url);
     if (!parsed) {
       return [{ title: 'Error', url: '-', create_time: '-', status: 'invalid album URL' }];
