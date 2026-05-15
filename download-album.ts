@@ -274,7 +274,7 @@ cli({
       const alreadyHave = entries.filter(e => e.localPath);
 
       console.error(`📖 合集名称: ${albumTitle}`);
-      console.error(`📊 已下载: ${alreadyHave.length} 篇，待下载: ${toDownload.length} 篇`);
+      console.error(`📊 已下载: ${alreadyHave.length} 篇，待下载: ${toDownload.length} 篇，共 ${entries.length} 篇`);
 
       if (toDownload.length === 0) {
         console.error(`✅ 全部文章已下载完成，无需继续\n`);
@@ -290,12 +290,14 @@ cli({
       let successCount = alreadyHave.length;
       const total = entries.length;
 
+      console.error(`\n📥 开始下载...\n`);
+
       for (let i = 0; i < toDownload.length; i++) {
         const entry = toDownload[i];
         const num = entry.index;
-        const remaining = toDownload.length - i;
 
-        console.error(`\n[${num}/${total}] 📥 下载: ${entry.title}`);
+        console.error(`📊 下载进度: ${successCount}/${total} 篇`);
+        console.error(`[${num}/${total}] 📥 ${entry.title}`);
 
         const result = await downloadArticle(entry.url, outputDir);
 
@@ -303,14 +305,14 @@ cli({
           const relativePath = path.relative(outputDir, result.localPath);
           updateMdLocalPath(localIndexPath, num, relativePath);
           successCount++;
-          console.error(`✅ [${num}/${total}] 下载成功，已更新本地路径: ${relativePath}`);
+          console.error(`✅ 成功 → ${relativePath}\n`);
         } else {
-          console.error(`❌ [${num}/${total}] 下载失败: ${entry.title}`);
+          console.error(`❌ 失败\n`);
         }
 
         if (i < toDownload.length - 1) {
           const pause = 1000 + Math.random() * 2000;
-          console.error(`⏳ 等待 ${Math.round(pause / 1000)}s 后继续...`);
+          console.error(`⏳ 等待 ${Math.round(pause / 1000)}s...\n`);
           await new Promise(r => setTimeout(r, pause));
         }
       }
@@ -419,17 +421,20 @@ cli({
     let successCount = alreadyHave;
     const total = allArticles.length;
 
+    console.error(`📥 开始下载...\n`);
+
     for (let i = 0; i < allArticles.length; i++) {
       const article = allArticles[i];
       const num = i + 1;
 
       // Skip if already downloaded
       if (existingEntries.has(num)) {
-        console.error(`⏭️ [${num}/${total}] 已存在，跳过: ${article.title}`);
+        console.error(`⏭️ [${num}/${total}] 跳过（已存在）: ${article.title}`);
         continue;
       }
 
-      console.error(`\n[${num}/${total}] 📥 下载: ${article.title}`);
+      console.error(`📊 下载进度: ${successCount}/${total} 篇`);
+      console.error(`[${num}/${total}] 📥 ${article.title}`);
 
       const result = await downloadArticle(article.url, outputDir);
 
@@ -437,16 +442,16 @@ cli({
         const relativePath = path.relative(outputDir, result.localPath);
         updateMdLocalPath(indexPath, num, relativePath);
         successCount++;
-        console.error(`✅ [${num}/${total}] 下载成功，已更新本地路径: ${relativePath}`);
+        console.error(`✅ 成功 → ${relativePath}\n`);
       } else {
-        console.error(`❌ [${num}/${total}] 下载失败: ${article.title}`);
+        console.error(`❌ 失败\n`);
       }
 
       // Pause before next download (except for last one)
-      const remaining = toDownload.findIndex(a => a === article);
-      if (remaining < toDownload.length - 1) {
+      const remainingDownloads = toDownload.findIndex(a => a === article);
+      if (remainingDownloads < toDownload.length - 1) {
         const pause = 1000 + Math.random() * 2000;
-        console.error(`⏳ 等待 ${Math.round(pause / 1000)}s 后继续...`);
+        console.error(`⏳ 等待 ${Math.round(pause / 1000)}s...\n`);
         await new Promise(r => setTimeout(r, pause));
       }
     }
