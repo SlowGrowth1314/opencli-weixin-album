@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.js
+!download-album.js
 !src/
 *.d.ts
 .DS_Store
